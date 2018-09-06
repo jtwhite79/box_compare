@@ -1,0 +1,17 @@
+START STANDARD_DEVIATION
+  std_multiplier 1.0
+  well01_1      1e-4
+  well02_1    	1e-4
+  well03_1    	1e-4
+  well04_1    	1e-4
+  well05_1    	1e-4
+  well06_1    	1e-4
+  well07_1    	1e-4
+  well08_1    	1e-4
+  well09_1    	1e-4
+  well10_1    	1e-4
+  well11_1    	1e-4
+  well12_1    	1e-4
+  part_time   	1e-4
+  part_east   	1e-4
+END STANDARD_DEVIATION

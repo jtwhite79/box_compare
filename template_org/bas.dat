@@ -1,0 +1,5 @@
+# Basic package file for MODFLOW-2000
+FREE
+OPEN/CLOSE 'ibound.inf'  1  '(FREE)'  -1             IBOUND array for layer 1
+   1.0e35
+Constant            0.0                              Starting Heads in Layer 1
