@@ -1,6 +1,10 @@
 import os
 import sys
 import shutil
+import numpy as np
+import matplotlib.pyplot as plt
+import pandas as pd
+
 import flopy
 import pyemu
 
@@ -8,6 +12,8 @@ base_d = "template_org"
 base_pst = "temp.pst"
 new_d = "template_new"
 new_pst = "new.pst"
+
+forecasts = ["part_time","part_east"]
 
 def add_extras_without_pps():
 
@@ -147,25 +153,114 @@ def base_ies():
     pyemu.os_utils.start_slaves(temp_d,"pestpp-ies",pst_name,num_slaves=20,
                                 master_dir=temp_d.replace("template","master"))
 
-def grid_ies():
-    temp_d = "template_grid_ies"
+def run_ies(temp_d,pp_args = {},base_dd=new_d):
     if os.path.exists(temp_d):
         shutil.rmtree(temp_d)
-    shutil.copytree(new_d,temp_d)
+    shutil.copytree(base_dd,temp_d)
     os.remove(os.path.join(temp_d,"pestpp-ies.exe"))
-    pst = pyemu.Pst(os.path.join(temp_d,new_pst))
+    try:
+        pst = pyemu.Pst(os.path.join(temp_d,new_pst))
+    except:
+        pst = pyemu.Pst(os.path.join(temp_d, base_pst))
     pst.pestpp_options = {}
-   # pst.pestpp_options["parcov"] = "prior.jcb"
-    pst.pestpp_options["ies_par_en"] = "par.csv"
-    pst.pestpp_options["ies_bad_phi"] = 2000.0
+    # pst.pestpp_options["parcov"] = "prior.jcb"
+    # pst.pestpp_options["ies_par_en"] = "par.csv"
+    pst.pestpp_options["ies_bad_phi"] = 20000.0
+    for k,v in pp_args.items():
+        pst.pestpp_options[k] = v
+    # pst.pestpp_options["parcov"] = "prior.jcb"
+    # pst.pestpp_options["ies_par_en"] = "par.csv"
+    pst.pestpp_options["ies_bad_phi"] = 20000.0
+
     pst.control_data.noptmax = 10
     pst_name = "new_ies.pst"
     pst.write(os.path.join(temp_d,pst_name))
     pyemu.os_utils.start_slaves(temp_d,"pestpp-ies",pst_name,num_slaves=20,
                                 master_dir=temp_d.replace("template","master"))
+
+
+def build_dist_localizer_grid(tol=None):
+    sr = flopy.utils.SpatialReference.from_gridspec(os.path.join(new_d,"rect.spc"))
+    pst = pyemu.Pst(os.path.join(new_d,new_pst))
+    par = pst.parameter_data
+    gr_par = par.loc[par.parnme.apply(lambda x :x.startswith("gr_")),:].copy()
+    gr_par.loc[:, 'i'] = gr_par.parnme.apply(lambda x: int(x.split('_')[1][:3]))
+    gr_par.loc[:, 'j'] = gr_par.parnme.apply(lambda x: int(x.split('_')[1][3:]))
+    gr_par.loc[:, "x"] = gr_par.apply(lambda x: sr.xcentergrid[x.i,x.j],axis=1)
+    gr_par.loc[:, "y"] = gr_par.apply(lambda x: sr.ycentergrid[x.i, x.j], axis=1)
+
+    obs_df = pd.read_csv(os.path.join(new_d,"wells.crd"),delim_whitespace=True,header=None,names=["name","x","y","zone"])
+    obs_df.index = obs_df.name
+    v = pyemu.geostats.ExpVario(1.0,100.0)
+    vecs = []
+    for name in obs_df.name:
+        vec = v.covariance_points(obs_df.loc[name,'x'],obs_df.loc[name,"y"],gr_par.x,gr_par.y)
+        if tol is not None:
+            vec[vec<tol] = 0.0
+        vecs.append(vec)
+
+    df = pd.DataFrame(vecs)
+    df.index = obs_df.name + "_1"
+    df.to_csv(os.path.join(new_d,"distance_localizer.csv"))
+
+    # fig = plt.figure(figsize=(6,9))
+    # ax = plt.subplot(111,aspect="equal")
+    # arr = np.zeros((sr.nrow,sr.ncol))
+    # arr /= arr.max()
+    # arr[gr_par.i,gr_par.j] = df.sum()
+    #
+    # ax.pcolormesh(sr.xcentergrid,sr.ycentergrid,arr)
+    # plt.show()
+
+
+def plot_pdfs():
+    master_ds = [d for d in os.listdir('.') if d.startswith("master_") and os.path.isdir(d)]
+    posterior_dfs = {}
+    for master_d in master_ds:
+        files = [f for f in os.listdir(master_d) if f.endswith(".obs.csv") and not "base" in f]
+        inum = [int(f.split('.')[1]) for f in files]
+        post_file = {i:f for i,f in zip(inum,files)}[max(inum)]
+        df = pd.read_csv(os.path.join(master_d,post_file),index_col=0)
+        df.columns = df.columns.str.lower()
+        posterior_dfs[master_d] = df
+    pyemu.plot_utils.ensemble_helper(list(posterior_dfs.values()),plot_cols=forecasts,filename="ies_pdfs.pdf")
+
+
+def run_all():
+    #base ies case with pp
+    run_ies("template_pp_ies", base_dd=base_d)
+
+    #base ies grid case
+    pp_args = {}
+    pp_args["ies_par_en"] = "par.csv"
+    run_ies("template_grid_ies", base_dd=new_d,pp_args=pp_args)
+
+    #ies grid with distance localization - no cutoff
+    build_dist_localizer_grid()
+    pp_args["ies_localizer"] = "distance_localizer.csv"
+    pp_args["ies_localize_how"] = "pars"
+    run_ies("template_dist_loc_nocut_by_par",pp_args=pp_args)
+
+    #same but by obs
+    pp_args["ies_localize_how"] = "obs"
+    run_ies("template_dist_loc_nocut_by_obs", pp_args=pp_args)
+
+    # distance localization with cutoff
+    build_dist_localizer_grid(tol=0.2)
+    pp_args["ies_localize_how"] = "pars"
+    run_ies("template_dist_loc_cut_by_par", pp_args=pp_args)
+
+    pp_args["ies_localize_how"] = "obs"
+    run_ies("template_dist_loc_cut_by_obs", pp_args=pp_args)
+
+
 if __name__ == "__main__":
     #base_ies()
-    add_extras_without_pps()
-    grid_ies()
+    #add_extras_without_pps()
+    #grid_ies()
+    #build_dist_localizer_grid()
+    #run_ies("template_dist_loc_nocut",pp_args={"ies_par_en":"par.csv","ies_localizer":"distance_localizer.csv","ies_localize_how":"pars"})
 
-
+    #run_ies("template_pp_ies",base_dd=base_d)
+    run_all
+    plot_pdfs()
