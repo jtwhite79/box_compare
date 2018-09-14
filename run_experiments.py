@@ -153,7 +153,7 @@ def base_ies():
     pyemu.os_utils.start_slaves(temp_d,"pestpp-ies",pst_name,num_slaves=20,
                                 master_dir=temp_d.replace("template","master"))
 
-def run_ies(temp_d,pp_args = {},base_dd=new_d):
+def run(temp_d,pp_args = {},base_dd=new_d,exe="pestpp-ies",noptmax=10):
     if os.path.exists(temp_d):
         shutil.rmtree(temp_d)
     shutil.copytree(base_dd,temp_d)
@@ -172,10 +172,10 @@ def run_ies(temp_d,pp_args = {},base_dd=new_d):
     # pst.pestpp_options["ies_par_en"] = "par.csv"
     pst.pestpp_options["ies_bad_phi"] = 20000.0
 
-    pst.control_data.noptmax = 10
+    pst.control_data.noptmax = noptmax
     pst_name = "new_ies.pst"
     pst.write(os.path.join(temp_d,pst_name))
-    pyemu.os_utils.start_slaves(temp_d,"pestpp-ies",pst_name,num_slaves=20,
+    pyemu.os_utils.start_slaves(temp_d,exe,pst_name,num_slaves=20,
                                 master_dir=temp_d.replace("template","master"))
 
 
@@ -223,44 +223,43 @@ def plot_pdfs():
         df = pd.read_csv(os.path.join(master_d,post_file),index_col=0)
         df.columns = df.columns.str.lower()
         posterior_dfs[master_d] = df
-    pyemu.plot_utils.ensemble_helper(list(posterior_dfs.values()),plot_cols=forecasts,filename="ies_pdfs.pdf")
+    pyemu.plot_utils.ensemble_helper(list(posterior_dfs.values()),plot_cols=forecasts,filename="ies_pdfs.pdf",)
 
 
 def run_all():
+
+    run("template_pp_base",base_dd=base_d,exe="pestpp")
+
     #base ies case with pp
-    run_ies("template_pp_ies", base_dd=base_d)
+    run("template_pp_ies", base_dd=base_d)
 
     #base ies grid case
     pp_args = {}
     pp_args["ies_par_en"] = "par.csv"
-    run_ies("template_grid_ies", base_dd=new_d,pp_args=pp_args)
+    run("template_grid_ies", base_dd=new_d,pp_args=pp_args)
 
     #ies grid with distance localization - no cutoff
     build_dist_localizer_grid()
     pp_args["ies_localizer"] = "distance_localizer.csv"
     pp_args["ies_localize_how"] = "pars"
-    run_ies("template_dist_loc_nocut_by_par",pp_args=pp_args)
+    run("template_dist_loc_nocut_by_par",pp_args=pp_args)
 
     #same but by obs
     pp_args["ies_localize_how"] = "obs"
-    run_ies("template_dist_loc_nocut_by_obs", pp_args=pp_args)
+    run("template_dist_loc_nocut_by_obs", pp_args=pp_args)
 
     # distance localization with cutoff
     build_dist_localizer_grid(tol=0.2)
     pp_args["ies_localize_how"] = "pars"
-    run_ies("template_dist_loc_cut_by_par", pp_args=pp_args)
+    run("template_dist_loc_cut_by_par", pp_args=pp_args)
 
     pp_args["ies_localize_how"] = "obs"
-    run_ies("template_dist_loc_cut_by_obs", pp_args=pp_args)
+    run("template_dist_loc_cut_by_obs", pp_args=pp_args)
 
 
 if __name__ == "__main__":
-    #base_ies()
     #add_extras_without_pps()
-    #grid_ies()
     #build_dist_localizer_grid()
-    #run_ies("template_dist_loc_nocut",pp_args={"ies_par_en":"par.csv","ies_localizer":"distance_localizer.csv","ies_localize_how":"pars"})
 
-    #run_ies("template_pp_ies",base_dd=base_d)
-    run_all
+    run_all()
     plot_pdfs()
