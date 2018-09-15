@@ -302,10 +302,18 @@ def run_all():
     pp_args["ies_localize_how"] = "obs"
     run("template_dist_loc_cut_by_obs", pp_args=pp_args)
 
+    # physics based localization
+    build_phy_localizer_grid()
+    pp_args["ies_localize_how"] = "pars"
+    pp_args["ies_localizer"] = "phy_localizer.pst"
+    run("template_phy_loc_by_par", pp_args=pp_args)
+
+    pp_args["ies_localize_how"] = "obs"
+    run("template_phy_loc_cut_by_obs", pp_args=pp_args)
 
 if __name__ == "__main__":
     #add_extras_without_pps()
     #build_dist_localizer_grid()
-    build_phy_localizer_grid()
+    #build_phy_localizer_grid()
     #run_all()
     #plot_pdfs()
