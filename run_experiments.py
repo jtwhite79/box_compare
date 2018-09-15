@@ -160,8 +160,10 @@ def run(temp_d,pp_args = {},base_dd=new_d,exe="pestpp-ies",noptmax=10):
     os.remove(os.path.join(temp_d,"pestpp-ies.exe"))
     try:
         pst = pyemu.Pst(os.path.join(temp_d,new_pst))
+        pst_name = new_pst
     except:
         pst = pyemu.Pst(os.path.join(temp_d, base_pst))
+        pst_name = base_pst
     pst.pestpp_options = {}
     # pst.pestpp_options["parcov"] = "prior.jcb"
     # pst.pestpp_options["ies_par_en"] = "par.csv"
@@ -173,10 +175,51 @@ def run(temp_d,pp_args = {},base_dd=new_d,exe="pestpp-ies",noptmax=10):
     pst.pestpp_options["ies_bad_phi"] = 20000.0
 
     pst.control_data.noptmax = noptmax
-    pst_name = "new_ies.pst"
+    #pst_name = "new_ies.pst"
     pst.write(os.path.join(temp_d,pst_name))
     pyemu.os_utils.start_slaves(temp_d,exe,pst_name,num_slaves=20,
                                 master_dir=temp_d.replace("template","master"))
+
+
+def build_phy_localizer_grid(tol=None):
+    m = flopy.modflow.Modflow.load("rect_model.nam", model_ws=new_d, verbose=True)
+    # first run noptmax=-1 for pp model
+    temp_d = "template_pp_jco"
+    if not os.path.exists(temp_d):
+        run("template_pp_jco",base_dd=base_d,exe="pestpp",noptmax=-1)
+    master_d = temp_d.replace("template","master")
+    pst_pp = pyemu.Pst(os.path.join(master_d,base_pst))
+    pst_grid = pyemu.Pst(os.path.join(new_d,new_pst))
+    # raise to the 10 power for the log transform
+    jco_pp = pyemu.Jco.from_binary(os.path.join(master_d,base_pst.replace(".pst",".jcb"))).to_dataframe()
+    pp_df = pyemu.pp_utils.pp_file_to_dataframe(os.path.join(master_d,"hk.pts"))
+    #pp_df.index = pp_df.name
+    #pp_df.loc[:,"name"] = "k_" + pp_df.name
+    #pp_df.index = pp_df.name
+    col_names = jco_pp.columns.copy()
+    jco_pp.columns = jco_pp.columns.map(lambda x: x.replace("k_",""))
+    pnames = []
+    for i in range(m.nrow):
+        for j in range(m.ncol):
+            pnames.append("gr_{0:03d}{1:03d}".format(i, j))
+    dfs = []
+    for oname in pst_pp.nnz_obs_names:
+        pp_df.loc[:,'parval1'] = jco_pp.loc[oname,pp_df.name].values
+        pp_df.loc[pp_df.parval1 <1.0e-10,"parval1"] = 1.0e-10
+        pp_df.fillna(1.0e-10)
+        arr = pyemu.geostats.fac2real(pp_df,os.path.join(master_d,"factors.dat"),out_file=None)
+        plt.imshow(arr)
+        plt.show()
+        df = pd.DataFrame(arr.flatten(),index=pnames,columns=[oname])
+        dfs.append(df)
+
+    df = pd.concat(dfs,axis=1)
+    print(df)
+    df.T.to_csv(os.path.join(new_d,"phy_localizer.csv"))
+
+
+
+
 
 
 def build_dist_localizer_grid(tol=None):
@@ -219,7 +262,10 @@ def plot_pdfs():
     for master_d in master_ds:
         files = [f for f in os.listdir(master_d) if f.endswith(".obs.csv") and not "base" in f]
         inum = [int(f.split('.')[1]) for f in files]
-        post_file = {i:f for i,f in zip(inum,files)}[max(inum)]
+        try:
+            post_file = {i:f for i,f in zip(inum,files)}[max(inum)]
+        except:
+            continue
         df = pd.read_csv(os.path.join(master_d,post_file),index_col=0)
         df.columns = df.columns.str.lower()
         posterior_dfs[master_d] = df
@@ -260,6 +306,6 @@ def run_all():
 if __name__ == "__main__":
     #add_extras_without_pps()
     #build_dist_localizer_grid()
-
-    run_all()
-    plot_pdfs()
+    build_phy_localizer_grid()
+    #run_all()
+    #plot_pdfs()
