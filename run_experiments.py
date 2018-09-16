@@ -14,6 +14,7 @@ new_d = "template_new"
 new_pst = "new.pst"
 
 forecasts = ["part_time","part_east"]
+local_vario = pyemu.geostats.ExpVario(1.0,150.0) #same range as pp structure
 
 def add_extras_without_pps():
 
@@ -64,14 +65,28 @@ def add_extras_without_pps():
 
     pyemu.os_utils.run("pestpp new.pst",cwd=new_d)
 
+
+def generate_grid_cov_and_ensemble():
+    m = flopy.modflow.Modflow.load("rect_model.nam", model_ws=new_d, verbose=True)
+    pst = pyemu.Pst(os.path.join(new_d,new_pst))
+    par = pst.parameter_data
+    gr_par = par.loc[par.parnme.apply(lambda x: x.startswith("gr_")),:].copy()
+    gr_par.loc[:,"i"] = gr_par.parnme.apply(lambda x : int(x.split('_')[1][:3]))
+    gr_par.loc[:, "j"] = gr_par.parnme.apply(lambda x: int(x.split('_')[1][3:6]))
+    gr_par.loc[:,'x'] = gr_par.apply(lambda x : m.sr.xcentergrid[x.i,x.j], axis=1)
+    gr_par.loc[:, 'y'] = gr_par.apply(lambda x: m.sr.ycentergrid[x.i, x.j], axis=1)
+
+
     gs = pyemu.geostats.read_struct_file(os.path.join(new_d, "struct.dat"))
     struct_dict = {}
     #struct_dict[gs[0]] = os.path.join(new_d, "hk.tpl")
     gs[1].variograms[0].contribution = 1.0
-    struct_dict[gs[1]] = df
-    cov = pyemu.helpers.geostatistical_prior_builder(pst, struct_dict=struct_dict,sigma_range=6.0)
+    struct_dict[gs[1]] = gr_par
+    cov = gs[1].covariance_matrix(gr_par.x,gr_par.y,gr_par.parnme)
+    #cov = pyemu.helpers.geostatistical_prior_builder(pst, struct_dict=struct_dict,sigma_range=6.0)
     cov.to_binary(os.path.join(new_d, "prior.jcb"))
-    pe = pyemu.helpers.geostatistical_draws(pst,struct_dict)
+    #pe = pyemu.helpers.geostatistical_draws(pst,struct_dict)
+    pe = pyemu.ParameterEnsemble.from_gaussian_draw(pst,cov,num_reals=200,enforce_bounds=True)
     pe.to_csv(os.path.join(new_d,"par.csv"))
     print(cov.shape)
     print(gs)
@@ -190,6 +205,7 @@ def build_phy_localizer_grid(tol=None):
     master_d = temp_d.replace("template","master")
     pst_pp = pyemu.Pst(os.path.join(master_d,base_pst))
     pst_grid = pyemu.Pst(os.path.join(new_d,new_pst))
+
     # raise to the 10 power for the log transform
     jco_pp = pyemu.Jco.from_binary(os.path.join(master_d,base_pst.replace(".pst",".jcb"))).to_dataframe()
     pp_df = pyemu.pp_utils.pp_file_to_dataframe(os.path.join(master_d,"hk.pts"))
@@ -234,10 +250,10 @@ def build_dist_localizer_grid(tol=None):
 
     obs_df = pd.read_csv(os.path.join(new_d,"wells.crd"),delim_whitespace=True,header=None,names=["name","x","y","zone"])
     obs_df.index = obs_df.name
-    v = pyemu.geostats.ExpVario(1.0,100.0)
+
     vecs = []
     for name in obs_df.name:
-        vec = v.covariance_points(obs_df.loc[name,'x'],obs_df.loc[name,"y"],gr_par.x,gr_par.y)
+        vec = local_vario.covariance_points(obs_df.loc[name,'x'],obs_df.loc[name,"y"],gr_par.x,gr_par.y)
         if tol is not None:
             vec[vec<tol] = 0.0
         vecs.append(vec)
@@ -309,11 +325,12 @@ def run_all():
     run("template_phy_loc_by_par", pp_args=pp_args)
 
     pp_args["ies_localize_how"] = "obs"
-    run("template_phy_loc_cut_by_obs", pp_args=pp_args)
+    run("template_phy_loc_by_obs", pp_args=pp_args)
 
 if __name__ == "__main__":
     #add_extras_without_pps()
     #build_dist_localizer_grid()
     #build_phy_localizer_grid()
-    #run_all()
+    #generate_grid_cov_and_ensemble()
+    run_all()
     #plot_pdfs()
