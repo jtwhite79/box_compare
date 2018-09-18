@@ -14,6 +14,7 @@ new_d = "template_new"
 new_pst = "new.pst"
 
 forecasts = ["part_time","part_east"]
+
 local_vario = pyemu.geostats.ExpVario(1.0,150.0) #same range as pp structure
 
 def add_extras_without_pps():
@@ -182,14 +183,15 @@ def run(temp_d,pp_args = {},base_dd=new_d,exe="pestpp-ies",noptmax=10):
     pst.pestpp_options = {}
     # pst.pestpp_options["parcov"] = "prior.jcb"
     # pst.pestpp_options["ies_par_en"] = "par.csv"
-    pst.pestpp_options["ies_bad_phi"] = 20000.0
+
     for k,v in pp_args.items():
         pst.pestpp_options[k] = v
     # pst.pestpp_options["parcov"] = "prior.jcb"
     # pst.pestpp_options["ies_par_en"] = "par.csv"
-    pst.pestpp_options["ies_bad_phi"] = 20000.0
+    #pst.pestpp_options["ies_bad_phi"] = 20000.0
 
     pst.control_data.noptmax = noptmax
+    #pst.observation_data.loc[pst.nnz_obs_names,"weight"] = 30.0
     #pst_name = "new_ies.pst"
     pst.write(os.path.join(temp_d,pst_name))
     pyemu.os_utils.start_slaves(temp_d,exe,pst_name,num_slaves=20,
@@ -275,9 +277,16 @@ def build_dist_localizer_grid(tol=None):
 def plot_pdfs():
     master_ds = [d for d in os.listdir('.') if d.startswith("master_") and os.path.isdir(d)]
     posterior_dfs = {}
+    phi_dfs = {}
     for master_d in master_ds:
-        files = [f for f in os.listdir(master_d) if f.endswith(".obs.csv") and not "base" in f]
-        inum = [int(f.split('.')[1]) for f in files]
+        #if not  "pp" in master_d:
+        #    continue
+        files = [f for f in os.listdir(master_d) if f.endswith(".obs.csv") and not "base" in f and not "mean" in f]
+        try:
+            inum = [int(f.split('.')[1]) for f in files]
+        except:
+            print(master_d,files)
+            continue
         try:
             post_file = {i:f for i,f in zip(inum,files)}[max(inum)]
         except:
@@ -285,20 +294,66 @@ def plot_pdfs():
         df = pd.read_csv(os.path.join(master_d,post_file),index_col=0)
         df.columns = df.columns.str.lower()
         posterior_dfs[master_d] = df
-    pyemu.plot_utils.ensemble_helper(list(posterior_dfs.values()),plot_cols=forecasts,filename="ies_pdfs.pdf",)
+        files = [f for f in os.listdir(master_d) if f.endswith(".phi.actual.csv")]
 
+        df = pd.read_csv(os.path.join(master_d,files[0]))
+        phi_dfs[master_d] = df
+    fig = plt.figure(figsize=(10,10))
+    ax_phi = plt.subplot(211)
+    ax = plt.subplot(212)
+
+
+    fname = "part_time"
+    for d,df in posterior_dfs.items():
+        lab = d.replace("master_","") + ", std:{0:6.1f}".format(df.loc[:,fname].std())
+        df.loc[:,fname].hist(ax=ax,bins=20,normed=True,alpha=0.5,label=lab)
+        df = phi_dfs[d]
+        df.iloc[-1,6:].hist(ax=ax_phi,bins=20,normed=True,alpha=0.5,label=d)
+    #pyemu.plot_utils.ensemble_helper(list(posterior_dfs.values()),plot_cols=forecasts,filename="ies_pdfs.pdf",)
+    ylim = ax.get_ylim()
+    ax.plot([3256,3256],ylim,"k--",lw=3.0)
+    ax.set_xlabel("part time")
+    ax_phi.set_xlabel("phi")
+    ax_phi.set_xlim(0,100)
+    ax.set_yticklabels([])
+    ax_phi.set_yticklabels([])
+
+    plt.legend()
+    plt.show()
 
 def run_all():
 
-    run("template_pp_base",base_dd=base_d,exe="pestpp")
+    #run("template_pp_base",base_dd=base_d,exe="pestpp")
 
-    #base ies case with pp
-    run("template_pp_ies", base_dd=base_d)
+
+    # base ies case with pp
+    pp_args = {"ies_num_reals": 50}
+    pp_args["ies_save_lambda_en"] = True
+    #pp_args["ies_par_en"] = "random.csv"
+    pp_args["parcov"] = "cov.mat"
+    run("template_pp_ies", base_dd=base_d, pp_args=pp_args)
+
+    pp_args["ies_use_prior_scaling"] = True
+    pp_args["ies_use_approx"] = False
+    run("template_pp_ies_full_scale", base_dd=base_d,pp_args=pp_args)
 
     #base ies grid case
-    pp_args = {}
+    pp_args["parcov"] = "prior.jcb"
+    pp_args["ies_bad_phi"] = 20000.0
     pp_args["ies_par_en"] = "par.csv"
     run("template_grid_ies", base_dd=new_d,pp_args=pp_args)
+
+    # physics based localization
+    build_phy_localizer_grid()
+    pp_args["ies_localize_how"] = "pars"
+    pp_args["ies_localizer"] = "phy_localizer.csv"
+    run("template_phy_loc_by_par", pp_args=pp_args)
+
+    # physics based localization with prior scaling and full solution
+    pp_args["ies_use_prior_scaling"] = True
+    pp_args["ies_use_approx"] = False
+    run("template_phy_loc_by_par_full_scale", pp_args=pp_args)
+    return
 
     #ies grid with distance localization - no cutoff
     build_dist_localizer_grid()
@@ -318,19 +373,39 @@ def run_all():
     pp_args["ies_localize_how"] = "obs"
     run("template_dist_loc_cut_by_obs", pp_args=pp_args)
 
-    # physics based localization
-    build_phy_localizer_grid()
-    pp_args["ies_localize_how"] = "pars"
-    pp_args["ies_localizer"] = "phy_localizer.pst"
-    run("template_phy_loc_by_par", pp_args=pp_args)
-
     pp_args["ies_localize_how"] = "obs"
     run("template_phy_loc_by_obs", pp_args=pp_args)
 
+
+def start():
+    pyemu.os_utils.start_slaves(new_d,"pestpp-ies","new.pst",num_slaves=20,slave_root=".",port=4030)
+
+
+def invest():
+    temp_d = "test"
+    base_dd = new_d
+    if os.path.exists(temp_d):
+        shutil.rmtree(temp_d)
+    shutil.copytree(base_dd,temp_d)
+    os.remove(os.path.join(temp_d,"pestpp-ies.exe"))
+
+    pst = pyemu.Pst(os.path.join(temp_d,new_pst))
+    pst_name = new_pst
+    pst.pestpp_options["ies_par_en"] = "par.csv"
+    pst.control_data.noptmax = 1
+    #pst.observation_data.loc[pst.nnz_obs_names,"weight"] = 30.0
+    pst_name = "new_ies.pst"
+
+    pst.write(os.path.join(temp_d,pst_name))
+    #pyemu.os_utils.start_slaves(temp_d,exe,pst_name,num_slaves=20,
+    #                            master_dir=temp_d.replace("template","master"))
+    pyemu.os_utils.run("pestpp-ies {0}".format(pst_name),cwd=temp_d)
 if __name__ == "__main__":
     #add_extras_without_pps()
     #build_dist_localizer_grid()
-    #build_phy_localizer_grid()
+    build_phy_localizer_grid()
     #generate_grid_cov_and_ensemble()
-    run_all()
+    #run_all()
     #plot_pdfs()
+    #start()
+    #invest()
