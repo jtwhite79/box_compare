@@ -85,8 +85,11 @@ def generate_grid_cov_and_ensemble():
     struct_dict[gs[1]] = gr_par
     cov = gs[1].covariance_matrix(gr_par.x,gr_par.y,gr_par.parnme)
     #cov = pyemu.helpers.geostatistical_prior_builder(pst, struct_dict=struct_dict,sigma_range=6.0)
+
     cov.to_binary(os.path.join(new_d, "prior.jcb"))
+
     #pe = pyemu.helpers.geostatistical_draws(pst,struct_dict)
+    #cov = pyemu.Cov.from_parameter_data(pst,sigma_range=8.0)
     pe = pyemu.ParameterEnsemble.from_gaussian_draw(pst,cov,num_reals=200,enforce_bounds=True)
     pe.to_csv(os.path.join(new_d,"par.csv"))
     print(cov.shape)
@@ -275,8 +278,12 @@ def build_dist_localizer_grid(tol=None):
 
 
 def plot_pdfs():
-    master_ds = [d for d in os.listdir('.') if d.startswith("master_") and os.path.isdir(d)]
+    #master_ds = [d for d in os.listdir('.') if d.startswith("master_") and os.path.isdir(d)]
+    master_ds = ["master_pp_ies","master_grid_ies","master_phy_loc_by_par"]
+    #master_ds = ["master_grid_ies"]
+
     posterior_dfs = {}
+    prior_dfs = {}
     phi_dfs = {}
     for master_d in master_ds:
         #if not  "pp" in master_d:
@@ -294,32 +301,100 @@ def plot_pdfs():
         df = pd.read_csv(os.path.join(master_d,post_file),index_col=0)
         df.columns = df.columns.str.lower()
         posterior_dfs[master_d] = df
+        try:
+            prior_file = {i: f for i, f in zip(inum, files)}[min(inum)]
+        except:
+            continue
+        df = pd.read_csv(os.path.join(master_d,prior_file),index_col=0)
+        df.columns = df.columns.str.lower()
+        prior_dfs[master_d] = df
+
         files = [f for f in os.listdir(master_d) if f.endswith(".phi.actual.csv")]
 
         df = pd.read_csv(os.path.join(master_d,files[0]))
+
         phi_dfs[master_d] = df
     fig = plt.figure(figsize=(10,10))
-    ax_phi = plt.subplot(211)
-    ax = plt.subplot(212)
+    ax_phi = plt.subplot(111)
+    #ax = plt.subplot(212)
 
 
     fname = "part_time"
     for d,df in posterior_dfs.items():
-        lab = d.replace("master_","") + ", std:{0:6.1f}".format(df.loc[:,fname].std())
-        df.loc[:,fname].hist(ax=ax,bins=20,normed=True,alpha=0.5,label=lab)
-        df = phi_dfs[d]
-        df.iloc[-1,6:].hist(ax=ax_phi,bins=20,normed=True,alpha=0.5,label=d)
-    #pyemu.plot_utils.ensemble_helper(list(posterior_dfs.values()),plot_cols=forecasts,filename="ies_pdfs.pdf",)
-    ylim = ax.get_ylim()
-    ax.plot([3256,3256],ylim,"k--",lw=3.0)
-    ax.set_xlabel("part time")
-    ax_phi.set_xlabel("phi")
-    ax_phi.set_xlim(0,100)
-    ax.set_yticklabels([])
-    ax_phi.set_yticklabels([])
 
-    plt.legend()
+        #df.loc[:,fname].hist(ax=ax,bins=20,normed=True,alpha=0.5,label=lab)
+
+        df = phi_dfs[d]
+        lab = d.replace("master_", "") + ", nruns:{0:6d}".format(df.total_runs.iloc[-1])
+        print(d,df.loc[:,"mean"].max())
+        phis = df.iloc[-1,6:]
+        phis[phis>100] = np.NaN
+        phis.hist(ax=ax_phi,bins=10,normed=True,alpha=0.5,label=lab)
+
+    ax_phi.set_xlabel("phi")
+    #ax_phi.set_xlim(0, 100)
+    #ax.set_yticklabels([])
+    ax_phi.set_yticklabels([])
+    ax_phi.legend()
     plt.show()
+    plt.close(fig)
+
+    fig = plt.figure(figsize=(10,10))
+
+    axes = []
+    for i,d in enumerate(master_ds):
+        ax = plt.subplot2grid((len(master_ds),1),(i,0))
+        df = posterior_dfs[d]
+        lab = d.replace("master_", "") + ", std:{0:6.1f}".format(df.loc[:, fname].std())
+        ax.set_title(lab)
+        df.loc[:,fname].hist(ax=ax,bins=20,normed=True,alpha=0.5,label=lab,color='b')
+        df = prior_dfs[d]
+        df.loc[:, fname].hist(ax=ax, bins=20, normed=True, alpha=0.5, label=lab,color="0.5")
+        ylim = ax.get_ylim()
+        ax.plot([3256, 3256], ylim, "k--", lw=3.0)
+
+        ax.set_yticklabels([])
+        axes.append(ax)
+    ax.set_xlabel("part time")
+    #pyemu.plot_utils.ensemble_helper(list(posterior_dfs.values()),plot_cols=forecasts,filename="ies_pdfs.pdf",)
+
+    mx = max([ax.get_xlim()[1] for ax in axes])
+    mn = min([ax.get_xlim()[0] for ax in axes])
+    for ax in axes:
+        ax.set_xlim(mn,mx)
+
+    #plt.legend()
+    plt.show()
+    plt.close(fig)
+
+    fname = "part_east"
+    fig = plt.figure(figsize=(10, 10))
+
+    axes = []
+    for i, d in enumerate(master_ds):
+        ax = plt.subplot2grid((len(master_ds), 1), (i, 0))
+        df = posterior_dfs[d]
+        lab = d.replace("master_", "") + ", std:{0:6.1f}".format(df.loc[:, fname].std())
+        ax.set_title(lab)
+        df.loc[:, fname].hist(ax=ax, bins=20, normed=True, alpha=0.5, label=lab, color='b')
+        df = prior_dfs[d]
+        df.loc[:, fname].hist(ax=ax, bins=20, normed=True, alpha=0.5, label=lab, color="0.5")
+        ylim = ax.get_ylim()
+        #ax.plot([3256, 3256], ylim, "k--", lw=3.0)
+
+        ax.set_yticklabels([])
+        axes.append(ax)
+    ax.set_xlabel("part east")
+    # pyemu.plot_utils.ensemble_helper(list(posterior_dfs.values()),plot_cols=forecasts,filename="ies_pdfs.pdf",)
+
+    mx = max([ax.get_xlim()[1] for ax in axes])
+    mn = min([ax.get_xlim()[0] for ax in axes])
+    for ax in axes:
+        ax.set_xlim(mn, mx)
+
+    # plt.legend()
+    plt.show()
+    plt.close(fig)
 
 def run_all():
 
@@ -378,7 +453,7 @@ def run_all():
 
 
 def start():
-    pyemu.os_utils.start_slaves(new_d,"pestpp-ies","new.pst",num_slaves=20,slave_root=".",port=4030)
+    pyemu.os_utils.start_slaves("template_pp_ies","pestpp-ies","temp.pst",num_slaves=20,slave_root=".",port=4040)
 
 
 def invest():
@@ -403,9 +478,9 @@ def invest():
 if __name__ == "__main__":
     #add_extras_without_pps()
     #build_dist_localizer_grid()
-    build_phy_localizer_grid()
+    #build_phy_localizer_grid()
     #generate_grid_cov_and_ensemble()
     #run_all()
-    #plot_pdfs()
+    plot_pdfs()
     #start()
     #invest()
