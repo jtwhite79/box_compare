@@ -475,12 +475,41 @@ def invest():
     #pyemu.os_utils.start_slaves(temp_d,exe,pst_name,num_slaves=20,
     #                            master_dir=temp_d.replace("template","master"))
     pyemu.os_utils.run("pestpp-ies {0}".format(pst_name),cwd=temp_d)
+
+def process_reals():
+    df = pd.read_csv("reals.csv")
+    df.columns = ["real_{0:05d}".format(i) for i in range(df.shape[1])]
+    print(df.shape)
+    resamps = []
+    for ireal in range(df.shape[1]):
+        print(ireal,df.shape[1])
+        vals = df.iloc[:,ireal].values.reshape(200,500)
+        #plt.imshow(vals)
+        #plt.show()
+        resamp = np.zeros((50,80))
+
+        for ii,i in enumerate(range(0,200,4)):
+            for jj,j in enumerate(range(0,320,4)):
+                resamp[ii,jj] = vals[i:i+4,j:j+4].mean()
+        resamp = resamp.transpose()
+        resamps.append(resamp.flatten())
+
+
+    # ax1,ax2 = plt.subplot(211),plt.subplot(212)
+    # ax1.imshow(vals)
+    # ax2.imshow(resamp)
+    # plt.show()
+    resamp_df = pd.DataFrame(resamps)
+    resamp_df.to_csv("resample.csv")
+
+
 if __name__ == "__main__":
     #add_extras_without_pps()
     #build_dist_localizer_grid()
     #build_phy_localizer_grid()
     #generate_grid_cov_and_ensemble()
     #run_all()
-    plot_pdfs()
+    #plot_pdfs()
     #start()
     #invest()
+    process_reals()
