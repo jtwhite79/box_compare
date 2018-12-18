@@ -1,0 +1,13 @@
+             pestpp-ies.exe - a GLM iterative Ensemble Smoother
+for PEST(++) datasets 
+
+                 by the PEST++ developement team
+
+
+
+using control file: "new_ies.pst"
+
+Error prococessing control file: new_ies.pst
+
+PestFileError:  Error opening file: "new_ies.pst"
+

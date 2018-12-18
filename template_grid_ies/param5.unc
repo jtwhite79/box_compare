@@ -1,0 +1,64 @@
+START COVARIANCE_MATRIX
+  file hk_cov.mat
+  variance_multiplier 1.0
+END COVARIANCE_MATRIX
+
+START COVARIANCE_MATRIX
+  file por_cov.mat
+  variance_multiplier 0.25
+END COVARIANCE_MATRIX
+
+START STANDARD_DEVIATION
+  std_multiplier 1.0
+  wel01  0.15
+  wel02	 0.15
+  wel03	 0.15
+  wel04	 0.15
+  wel05	 0.15
+  wel06	 0.15
+  wel07	 0.15
+  wel08	 0.15
+  wel09	 0.15
+  wel10	 0.15
+  wel11	 0.15
+  wel12	 0.15
+  wel13	 0.15
+  wel14	 0.15
+  wel15	 0.15
+  wel16	 0.15
+  wel17	 0.15
+  wel18	 0.15
+  wel19	 0.15
+  wel20	 0.15
+  wel21	 0.15
+  wel22	 0.15
+  wel23	 0.15
+  wel24	 0.15
+  wel25	 0.15
+  wel26	 0.15
+  wel27	 0.15
+  wel28	 0.15
+  wel29	 0.15
+  wel30	 0.15
+  wel31	 0.15
+  wel32	 0.15
+  wel33	 0.15
+  wel34	 0.15
+  wel35	 0.15
+  wel36	 0.15
+  wel37	 0.15
+  wel38	 0.15
+  wel39	 0.15
+  wel40	 0.15
+  wel41	 0.15
+  wel42	 0.15
+  wel43	 0.15
+  wel44	 0.15
+  wel45	 0.15
+  wel46	 0.15
+  wel47	 0.15
+  wel48	 0.15
+  wel49	 0.15
+  wel50	 0.15
+END STANDARD_DEVIATION
+

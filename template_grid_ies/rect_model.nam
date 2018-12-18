@@ -1,0 +1,11 @@
+LIST           3 output.dat
+DIS           95 discret.dat
+BAS6           1 bas.dat
+ADV2          78 adv.dat
+OBS           77 observation.dat
+LPF           31 lpf.dat
+WEL           12 wel.dat
+LMG           23 lmg.dat
+OC            22 oc.dat
+DATA(BINARY)  51 heads.dat
+DATA          60 path.dat

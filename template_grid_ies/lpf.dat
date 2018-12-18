@@ -1,0 +1,8 @@
+ 0    -1E+30         0
+ 0
+ 0
+ 1
+ 1
+ 0
+OPEN/CLOSE 'hk.ref'  1.0  '(FREE)'  -1             Horizontal hydraulic conductivity
+Constant             1.0                           Vertical hydraulic conductivity ratio

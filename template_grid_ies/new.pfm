@@ -1,0 +1,96 @@
+PEST++ performance logger started at:  16:15:59
+        ( time = 16:15:59,  elapsed time = 1ms )
+  starting to process control file
+          ( time = 16:15:59,  elapsed time = 70ms )
+  finished processing control file
+          ( time = 16:16:00,  elapsed time = 37ms )
+    starting basic model IO error checking
+            ( time = 16:16:00,  elapsed time = 3ms )
+    finished basic model IO error checking
+            ( time = 16:16:00,  elapsed time = 4ms )
+    
+  ---  initializing  ---  
+            ( time = 16:16:00,  elapsed time = 638us )
+    ...using lambda multipliers: 0.1 , 0.5 , 1 , 2 , 5 , 
+            ( time = 16:16:00,  elapsed time = 41us )
+    ...usnig lambda scaling factors: 0.5 , 0.75 , 0.95 , 1 , 1.1 , 
+            ( time = 16:16:00,  elapsed time = 111us )
+    ...acceptable phi factor:  1.05
+            ( time = 16:16:00,  elapsed time = 17us )
+    ...lambda increase factor:  10
+            ( time = 16:16:00,  elapsed time = 16us )
+    ...lambda decrease factor:  0.75
+            ( time = 16:16:00,  elapsed time = 24us )
+    ...max run fail:  1
+            ( time = 16:16:00,  elapsed time = 31us )
+    initializing parcov
+            ( time = 16:16:00,  elapsed time = 25us )
+    ...initializing prior parameter covariance matrix from parameter bounds
+            ( time = 16:16:00,  elapsed time = 16us )
+    ...using par_sigma_range (number of standard deviations that par bounds represent): 4
+            ( time = 16:16:00,  elapsed time = 8ms )
+    ...initializing observation noise covariance matrix
+            ( time = 16:16:00,  elapsed time = 20us )
+    ...initializing obseravtion noise covariance matrix from observation weights
+            ( time = 16:16:00,  elapsed time = 81us )
+    ...using reg_factor:  0
+            ( time = 16:16:00,  elapsed time = 24us )
+    ...drawing parameter realizations:  50
+            ( time = 16:16:00,  elapsed time = 3ms )
+    parameters not grouped by parameter groups, reordering par ensemble
+            ( time = 16:16:00,  elapsed time = 8ms )
+    making standard normal draws
+            ( time = 16:16:00,  elapsed time = 8ms )
+    scaling by std
+            ( time = 16:16:00,  elapsed time = 177us )
+    checking realization for invalid values
+            ( time = 16:16:00,  elapsed time = 2ms )
+    resizing reals matrix
+            ( time = 16:16:00,  elapsed time = 568us )
+    filling reals matrix and adding mean values
+            ( time = 16:16:00,  elapsed time = 13ms )
+    ...not using prior parameter covariance matrix scaling
+            ( time = 16:16:00,  elapsed time = 14us )
+    load obscov
+            ( time = 16:16:00,  elapsed time = 16us )
+    ...drawing observation noise realizations:  50
+            ( time = 16:16:00,  elapsed time = 37us )
+    making standard normal draws
+            ( time = 16:16:00,  elapsed time = 36us )
+    scaling by std
+            ( time = 16:16:00,  elapsed time = 9us )
+    checking realization for invalid values
+            ( time = 16:16:00,  elapsed time = 64us )
+    resizing reals matrix
+            ( time = 16:16:00,  elapsed time = 10us )
+    filling reals matrix and adding mean values
+            ( time = 16:16:00,  elapsed time = 1ms )
+    ...transforming parameter ensembles to numeric
+            ( time = 16:16:00,  elapsed time = 28us )
+    ...adding 'base' parameter values to ensemble
+            ( time = 16:16:00,  elapsed time = 4ms )
+    ...adding 'base' observation values to ensemble
+            ( time = 16:16:00,  elapsed time = 278ms )
+    ...saved initial parameter ensemble to  new.0.par.csv
+            ( time = 16:16:00,  elapsed time = 16ms )
+    ...saved base observation ensemble (obsval+noise) to  new.base.obs.csv
+            ( time = 16:16:00,  elapsed time = 53us )
+    
+  ---  'noptmax'=0, running mean parameter ensemble values and quitting  ---  
+            ( time = 16:16:00,  elapsed time = 21us )
+    ...calculating mean parameter values
+            ( time = 16:16:00,  elapsed time = 4ms )
+    ...saving mean parameter values to  new.mean.par.csv
+            ( time = 16:16:00,  elapsed time = 52ms )
+    ...running mean parameter values
+            ( time = 16:16:00,  elapsed time = 23us )
+    queuing 1 runs
+            ( time = 16:16:00,  elapsed time = 27ms )
+    making runs
+            ( time = 16:16:01,  elapsed time = 1sec )
+    processing runs
+            ( time = 16:16:01,  elapsed time = 3ms )
+    ...saving results from mean parameter value run to  new.mean.obs.csv
+            ( time = 16:16:01,  elapsed time = 26ms )
+    
+  ---  mean parameter phi report:  ---  
